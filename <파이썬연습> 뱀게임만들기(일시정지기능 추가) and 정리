@@ -1,0 +1,362 @@
+# 뱀먹이게임
+
+# 개인적인 추가한 기능 일시정지
+
+
+
+
+import pygame       # 게임만드는 함수
+import sys          # 종료 함수
+import time         # 시간 함수
+import random       # 랜덤 함수
+import os
+
+from pygame.locals import *     # 모든 함수를 씀
+
+WINDOW_WIDTH = 800  # 실행창 크기   가로
+WINDOW_HEIGHT = 600 # 실행창 크기   세로
+
+WHITE = (255, 255, 255)     # 색깔 하얀색
+GREEN = (0,50,0)            # 색깔 녹색
+ORANGE = (250,150,0)        # 색깔 오렌지
+GRAY = (100, 100, 100)      # 색깔 회색
+
+
+# 뱀의 머리 설정
+ 
+GRID_SIZE = 20          # 뱀의 머리 기본 사이즈
+GRID_WIDTH = WINDOW_WIDTH / GRID_SIZE       # 가로 사이즈
+GRID_HEIGHT = WINDOW_HEIGHT / GRID_SIZE     # 세로 사이즈
+
+
+# 뱀이 오른쪽 왼쪽 위 아래 움직이는 인페이스
+
+UP = (0,-1)     # 위로만 올라간다.
+DOWN = (0,1)    # 아래로만 내려간다.
+LEFT = (-1,0)   # 왼쪽으로만 간다.
+RIGHT =(1,0)    # 오른쪽으로만 간다.
+
+# 뱀의 속도
+FPS = 10
+
+
+def check_eat(python, feed):            # 먹이를 먹었을 경우
+    if python.positions[0] == feed.positions:     # position == 뱀의 머리   뱀의 머리가 먹이의 위치랑 같은위치
+        python.eat()        # 파이썬이 먹이를 먹었다.
+        feed.create()        # 그리고 먹이를 다시 생성
+
+# 길이 량 시간 등 정보
+
+def show_info(length,speed,surface):    # 정보 표기
+    try:
+        font = pygame.font.Font(None,34)    # 폰트 크기
+        text = font.render("Length : " + str(length) + "      Speed : "+str(round(speed,2)) , 1 , GRAY)     # 길이 스피드
+        pos = text.get_rect()   # 글자 출력
+        pos.centerx = 650       # 위치 설정
+        surface.blit(text, pos) # 화면 위치
+    except:
+        pass
+
+#파이썬이란 뱀이 먹이를 먹는다
+class Python(object):
+    def __init__(self):
+        self.create()       # 뱀 만들기
+        self.color = GREEN  # 뱀 색깔
+
+    def create(self):
+        self.length = 2   # 뱀길이
+        self.positions =  [((WINDOW_WIDTH / 2), (WINDOW_HEIGHT / 2))]   # 뱀 위치 좌표   >> 즉 중앙
+        self.direction =   random.choice([UP,DOWN,LEFT,RIGHT])         #  위의 인터페이스를 이용해서 랜덤으로 생성 
+
+    def control(self,xy):
+        if (xy[0] * -1, xy[1] * -1) == self.direction:      # 뱀의 반대 방향으로 움직일수 없음    
+            return        # 따라서 같으면 그냥 리턴
+        else:
+            self.direction = xy  # 그외 상황에서는 좌표값 이동
+            
+    def move(self):
+        cur = self.positions[0] # 뱀의 머리
+        x, y = self.direction   #  뱀의 위치
+        new = (((cur[0] + (x* GRID_SIZE)) % WINDOW_WIDTH), (cur[1] + (y*GRID_SIZE)) % WINDOW_HEIGHT)   # 뱀의 머리를 그려야함
+
+        #WINDOW_WIDTH,WINDOW_HEIGHT 를 % 하는 이유는 창을 넘어가는 경우를 막기위함이다.
+
+        if new in self.positions[2:]:   # 내 뱀의 위치좌표에 내가 이동하는 부분이 포함이되면 죽은것이므로
+            #sys.exit()
+            self.create()               # 새롭게 다시 게임을 시작한다.
+        else:
+            self.positions.insert(0,new)        # 이제 자리에 새롭게 만들어진애를 삽입시켜줘야함
+            if len(self.positions) > self.length:   #  실제 길이보다 커지면
+                self.positions.pop()        # 뒷부분에 있는 부분을 pop 한다.
+
+    def eat(self):      # 뱀이 먹을떄 길이가 1씩 올라감
+        self.length +=1
+        
+    def draw(self,surface):
+        for p in self.positions:            # 뱀이랑 먹이를 그려야함
+            draw_object(surface,self.color,p)
+
+
+
+class Feed(object):
+    def __init__(self):
+        self.positions = (0,0)  # 먹이의 위치와 먹이 색깔, 먹이 생성
+        self.color = ORANGE
+        self.create()
+    def create(self):
+        self.positions = (random.randint(0, GRID_WIDTH -1) * GRID_SIZE, random.randint(0,GRID_HEIGHT -1) * GRID_SIZE)   # 실제 랜덤으로 먹이가 생성됨
+        
+    def draw(self,surface):
+        draw_object(surface,self.color,self.positions)  # 먹이 그림
+        
+
+
+def draw_object(surface,color,pos):         # 뱀의 머리와 먹이를 그려야 하기 떄문
+    r = pygame.Rect((pos[0],pos[1]),(GRID_SIZE,GRID_SIZE))  # x,y 좌표값부터 그려야함
+    pygame.draw.rect(surface,color,r)   # 그린 사각형을 게임에 나타내야함
+            
+        
+        
+            
+
+if __name__ == '__main__':      # main 함수 마냥 파이썬이 처음 시작 되는 부분 
+
+
+    python = Python()       # 클래스 선언
+    feed = Feed()
+
+    pygame.init()   # 그리고 pygame 을 초기화시켜줘야함
+    window = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT),0,32) # 파이게임을 돌리는 창이 필요함으로 만듦
+    pygame.display.set_caption('python game')   # 게임 이름 만들기
+    surface = pygame.Surface(window.get_size()) # 게임적인 요소 만들어주기 
+    surface = surface.convert() # 설정한 surface 를 convert를 해줌
+    surface.fill(WHITE) # 색깔 설정
+    clock = pygame.time.Clock() # 게임 시간 설정
+    pygame.key.set_repeat(1,40) # 반복 시간
+    window.blit(surface,(0,0))  # 비트연산을 통해서 화면 구성
+
+
+
+
+
+    Pasue_S = 0 # 일시정지할 변수
+    try:
+
+        while True:
+            for event in pygame.event.get():        # 키조작과 종료키
+
+                try:
+                    if event.type == QUIT:
+                        pygame.quit()
+                        sys.exit()
+
+ 
+                    elif event.type == KEYDOWN:
+
+                        if event.key == K_SPACE:    # 스페이스바 키를 먼저 받고 퍼즈 의 변수 0 1을 변환시킨다.
+
+                            if Pasue_S == 0:        # 스페이스바를 입력받았을떄 퍼즈를 1로 바뀌고 다른 조작키 정지
+                                Pasue_S = 1
+                                print("PAUSE ENABLED")
+
+                            elif Pasue_S == 1:      #  다시한번 스페이스바를 입력받을떄 퍼즈를 0으로 바꾸고
+                                Pasue_S = 0
+                                print("PAUSE DISABLED")
+                        elif Pasue_S == 0:              # 퍼즈가 0일떄인 일시정지 해제 즉 계속 진행한다.
+                            if event.key == K_UP:
+                                python.control(UP)
+                            elif event.key == K_DOWN:
+                                python.control(DOWN)
+                            elif event.key == K_LEFT:
+                                python.control(LEFT)
+                            elif event.key == K_RIGHT:
+                                python.control(RIGHT)
+                                
+
+
+                        
+
+
+                except:
+                    pass
+
+
+            surface.fill(WHITE)     # 화면을 하얀색으로 만든다.
+            if Pasue_S == 0:        # 일시정지를 만들었으니 퍼즈가 0일떄만 진행할수있게 해주어야한다.
+                python.move()
+            check_eat(python,feed)
+            speed = (FPS + python.length) / 2
+            show_info(python.length,speed,surface)
+            python.draw(surface)
+            feed.draw(surface)
+            window.blit(surface, (0,0))
+            pygame.display.flip()
+            pygame.display.update()
+            clock.tick(speed)
+
+    except:
+        pass
+    
+
+
+
+    ###########################정리##############################
+    
+    
+    뱀게임 정리
+
+
+pygame 모듈 설치후
+
+pygame 을 이용해 게임을만든다
+
+import pygame
+
+
+
+실행창 크기를 위해
+
+WINDOW_WIDTH = 800  # 실행창 크기   가로
+WINDOW_HEIGHT = 600 # 실행창 크기   세로
+
+변수를 만든다.
+
+뱀의 머리와 사이즈를 설정하기위해
+
+GRID_SIZE = 20          # 뱀의 머리 기본 사이즈
+GRID_WIDTH = WINDOW_WIDTH / GRID_SIZE       # 가로 사이즈
+GRID_HEIGHT = WINDOW_HEIGHT / GRID_SIZE     # 세로 사이즈
+
+변수를 만든다.
+
+또 화살표 좌우방향으로 움직여야하므로 인터페이스를 만들어야하므로
+
+UP = (0,-1)     # 위로만 올라간다.
+DOWN = (0,1)    # 아래로만 내려간다.
+LEFT = (-1,0)   # 왼쪽으로만 간다.
+RIGHT =(1,0)    # 오른쪽으로만 간다.
+
+변수를 설정해준다.
+속도 또한 변수를 만들어준다.
+
+그리고 뱀이 먹이를 먹었을 경우의 함수와
+def check_eat(python, feed):
+기타 길이나 스피드 정보 등 표기를 위해
+def show_info(length,speed,surface):
+
+함수들을 만들어주고
+파이썬 이라는 뱀을 설정해주기위해
+class Python(object) 파이썬이라는 클래스를 만들어준다.
+
+클래스안에
+
+def __init__(self): >> 뱀만드는 함수
+
+def create(self): >> 뱀의 길이나 뱀의 생성 위치 시작하자마자 자동 진행 방향 등 설정 함수
+
+def control(self,xy): >> 뱀의 방향 즉 머리부분이면 머리부분쪽의 뒤로는 갈수없음 ( 이동관련 함수)
+
+def move(self): >> 뱀의 머리와 위치를 받고 이동하는 함수 창을 넘지않도록 % 설정을 해주고
+		게임 종료조건도 걸려있음.
+
+def eat(self): >> 뱀이 먹이를 먹었을떄 길이가 늘어나게하는 함수
+
+def draw(self,surface): >> 뱀과 먹이를 그리는 함수 ( 그림 )
+
+
+먹이를 그리기고 여러가지 설정을 부여하기위해 클래스를 만듦
+class Feed(object):
+
+def __init__(self): >> 먹이위치 색깔 생성 관련 함수
+
+def create(self): >> 먹이 생성위치와 관련된 함수
+
+def draw(self,surface): >> 먹이를 그리는 함수 ( 즉 그림 )
+
+
+이제 클래스로 설정을 부여했으니 함수로 하나 만들어서 직접 설정해주자
+
+def draw_object(surface,color,pos):	>> 위치에 X,Y좌표값을 받아서 우리가 설정한
+				사각형을 게임안에 그림
+
+
+if __name__ == '__main__':  >> 파이썬의 main함수
+
+
+python = Python()       # 클래스 선언
+    feed = Feed()
+
+    pygame.init()   # 그리고 pygame 을 초기화시켜줘야함
+    window = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT),0,32) # 파이게임을 돌리는 창이 필요함으로 만듦
+    pygame.display.set_caption('python game')   # 게임 이름 만들기
+    surface = pygame.Surface(window.get_size()) # 게임적인 요소 만들어주기 
+    surface = surface.convert() # 설정한 surface 를 convert를 해줌  # 즉 한글화 해줌 
+    surface.fill(WHITE) # 색깔 설정
+    clock = pygame.time.Clock() # 게임 시간 설정
+    pygame.key.set_repeat(1,40) # 반복 시간
+    window.blit(surface,(0,0))  # 비트연산을 통해서 화면 구성
+
+이렇게 설정을 해줌 윈도우 관련 그리고 게임 창 이름 그리고 사이즈하고 한글화 
+시간설정 등 여러가지 설정을 해줌
+
+Pasue_S = 0 # 일시정지할 변수
+    try:
+
+        while True:
+            for event in pygame.event.get():        # 키조작과 종료키
+
+                try:
+                    if event.type == QUIT:
+                        pygame.quit()
+                        sys.exit()
+
+ 
+                    elif event.type == KEYDOWN:
+
+                        if event.key == K_SPACE:    # 스페이스바 키를 먼저 받고 퍼즈 의 변수 0 1을 변환시킨다.
+
+                            if Pasue_S == 0:        # 스페이스바를 입력받았을떄 퍼즈를 1로 바뀌고 다른 조작키 정지
+                                Pasue_S = 1
+                                print("PAUSE ENABLED")
+
+                            elif Pasue_S == 1:      #  다시한번 스페이스바를 입력받을떄 퍼즈를 0으로 바꾸고
+                                Pasue_S = 0
+                                print("PAUSE DISABLED")
+                        elif Pasue_S == 0:              # 퍼즈가 0일떄인 일시정지 해제 즉 계속 진행한다.
+                            if event.key == K_UP:
+                                python.control(UP)
+                            elif event.key == K_DOWN:
+                                python.control(DOWN)
+                            elif event.key == K_LEFT:
+                                python.control(LEFT)
+                            elif event.key == K_RIGHT:
+                                python.control(RIGHT)
+                                                
+                except:
+                    pass
+
+
+방향키 즉 움직이는 키와 관련된 코드를 짜준다. 일시정지는 추가기능이다.
+
+surface.fill(WHITE)     # 화면을 하얀색으로 만든다.
+            if Pasue_S == 0:        # 일시정지를 만들었으니 퍼즈가 0일떄만 진행할수있게 해주어야한다.
+                python.move()
+            check_eat(python,feed)
+            speed = (FPS + python.length) / 2
+            show_info(python.length,speed,surface)
+            python.draw(surface)
+            feed.draw(surface)
+            window.blit(surface, (0,0))
+            pygame.display.flip()
+            pygame.display.update()
+            clock.tick(speed)
+
+    except:
+        pass
+
+마지막으로 우리가 만들어준 함수들을 이용해서 마무리 하고
+예외가 발생하지않도록 try구문으로 만들어준다.
+
+
+    
+    
