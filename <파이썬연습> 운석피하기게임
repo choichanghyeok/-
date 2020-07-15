@@ -1,0 +1,292 @@
+# 0715 11시 50분 경 완성
+
+# 현재 일시정지 부분이 안됨
+# 일시정지 부분 완성하기    < 고쳤음 >
+
+
+#<출처> : https://www.youtube.com/watch?v=TQKxx5WwIe8
+
+
+
+
+
+
+
+import gettext
+import sys
+import random
+from time import sleep
+import math
+
+import pygame
+from pygame.locals import *
+
+WINDOW_W = 800  # 가로 창
+WINDOW_H = 600  # 세로 창
+
+BLACK = (0,0,0)
+WHITE = (200,200,200)   # 밝은회색
+YELLOW = (250,250,20)    
+BLUE = (20,20,250)  # 색깔조정
+
+pygame.init()       # 파이게임 시스템 호출   이유 >> 오류가 많이나서 먼저 호출
+
+screen = pygame.display.set_mode((WINDOW_W,WINDOW_H))   # 게임창
+pygame.display.set_caption('PySpaceShip: 우주 암석 피하기 게임') # 창 이름
+pygame.display.set_icon(pygame.image.load('warp.png'))  # 시작 이미지 로드      # 아이콘
+
+fps_clock = pygame.time.Clock() # fps 만들기
+FPS = 60    # 설정
+score = 0   # 점수
+
+default_font = pygame.font.Font('NanumGothic.ttf', 28) # 폰트 28사이즈  # NanumGothic.ttf 폰트 사용
+background_img = pygame.image.load('background.jpg')    # 배경 그림 로드 (창크기는 150x150 이지만 다시 고쳐서 사용함)
+explosion_sound = pygame.mixer.Sound('explosion.wav')   # 폭팔 음악 
+warp_sound = pygame.mixer.Sound('warp.wav') # warp (워프) 효과음
+pygame.mixer.music.load('Inner_Sanctum.mp3') # 게임 배경음악 로드
+
+
+
+
+class Spaceship(pygame.sprite.Sprite):
+    def __init__(self): # 초기화를 위한 __init__
+        super(Spaceship, self).__init__() # super 함수로 상속받음 스페이스쉽 이용
+        self.image = pygame.image.load('spaceship.png') # 이미지 로드
+        self.rect = self.image.get_rect()   # 이미지 크기 계산 정확한 위치에 넣어줌
+
+        self.centerx = self.rect.centerx    # 원래 센터x와 센터y값
+        self.centery = self.rect.centery    # 정의
+
+    def set_pos(self, x, y):                # 포지션 (위치 값)
+        self.rect.x = x - self.centerx
+        self.rect.y = y - self.centery
+
+    def collide(self, sprites):         # 충돌이 발생한다면
+        for sprite in sprites:
+            if pygame.sprite.collide_rect(self,sprite):     # 스프라이트가 겹쳐지면 무엇이 겹쳐졌는지 리턴
+                return sprite
+
+class Rock(pygame.sprite.Sprite):       # 암석 관련 클래스
+    def __init__(self, xpos,ypos,hspeed,vspeed):           #  x y 위치와 스피드
+        super(Rock,self).__init__() # 수퍼로 호출
+        rock = ('rock01.png','rock02.png','rock03.png','rock04.png','rock05.png',\
+            'rock06.png','rock07.png','rock08.png','rock09.png','rock10.png',\
+            'rock11.png','rock12.png','rock13.png','rock14.png','rock15.png',\
+            'rock16.png','rock17.png','rock18.png','rock19.png','rock20.png',\
+            'rock21.png','rock22.png','rock23.png','rock24.png','rock25.png',\
+            'rock26.png','rock27.png','rock28.png','rock29.png','rock30.png')          # 여러가지 암석 집에가서 추가
+
+
+        self.image = pygame.image.load(random.choice(rock)) # 암석 이미지 랜덤으로 가져오기
+        self.rect = self.image.get_rect()   # 이미지 출력
+        self.rect.x = xpos  # x 좌표
+        self.rect.y = ypos  # y 좌표
+        self.hspeed = hspeed   # h 속도 좌 우
+        self.vspeed = vspeed   # v 속도 위 아래
+
+        self.set_direction()        # 암석의 이미지 방향을 바꾸어야하는 함수
+
+    def set_direction(self):    # 진행 방향 관련함수
+        # 왼쪽에서 오른쪽 +    오른쪽에서 왼쪽 -
+        if self.hspeed > 0: # 수평 속도 
+            self.image = pygame.transform.rotate(self.image, 270) # 270도 틀어줌
+        elif self.hspeed < 0: # hspeed 즉 좌우 이동 
+            self.image = pygame.transform.rotate(self.image, 90)    # 90도 틀어줌
+        elif self.vspeed > 0:
+            self.image = pygame.transform.rotate(self.image, 180)   # 180도 틀어줌
+
+    def update(self):   # 업데이트할때마다 암석속도에관한 함수
+        self.rect.x += self.hspeed  # 좌우 속도 향상
+        self.rect.y += self.vspeed  # 위아래 속도 향상
+
+        if self.collide():
+            self.kill() # kill 하면 객체가 사라짐
+
+    def collide(self):  # 함수가 충돌했는지 안했는지 유무를 체크하는 함수
+        if self.rect.x < 0 - self.rect.height or self.rect.x > WINDOW_W:
+            return True
+        elif self.rect.y < 0 - self.rect.height or self.rect.y > WINDOW_H:
+            return True
+
+def random_rock(speed): # 암석이 랜덤으로 나오고 4가지 종류에대해서 랜덤으로 받고 받아온 값에대해서 암석을 새로생성하는 방식 함수
+    random_direction = random.randint(1,4)
+    # 즉 random_direction 이 1~4 총 4가지 이므로 아래처러 코드를 짠다.
+    # 4가지 종류에 대해서 랜덤하게 받고 받아온값에 대해 암석을 새로 생성하는
+    # 방식으로 작성
+    if random_direction == 1:   # 위에서 아래로 내려오는것을 만든다.
+        return Rock(random.randint(0,WINDOW_W), 0 , 0, speed)
+    elif random_direction == 2: # 오른쪽 왼쪽으로 랜덤으로 생성
+        return Rock(WINDOW_W, random.randint(0,WINDOW_H), -speed, 0)
+    elif random_direction == 3: # 밑에서 위로 랜덤하게 골라줌 (밑이니까 똑같이 x값중 아무거나 선택)
+        # vspeed 만 -주면 아래에서 위로감
+        return Rock(random.randint(0,WINDOW_W), WINDOW_H, 0, -speed)
+    elif random_direction == 4: # 왼쪽에서 오른쪽   
+        # 따라서 vspeed 0
+        return Rock(0,random.randint(0, WINDOW_H), speed,0)
+
+class Warp(pygame.sprite.Sprite):   # warp 아이템
+    def __init__(self,x,y):
+        super(Warp,self).__init__()
+        self.image = pygame.image.load('warp.png') # 이미지 로드
+        self.rect = self.image.get_rect()   # 이미지 크기 계산 정확한 위치에 넣어줌
+        self.rect.x = x - self.rect.centerx    # 원래 센터x와 센터y값
+        self.rect.y = y - self.rect.centery    # 정의
+
+def draw_repeating_background(background_img):  #백그라운드 이미지가 반복해서 배경이미지로 사용될수 있게함
+    background_rect = background_img.get_rect()
+    for i in range(int(math.ceil(WINDOW_W / background_rect.width))):   # 이미지 크기 설정
+        for j in range(int(math.ceil(WINDOW_H / background_rect.height))):
+            screen.blit(background_img, Rect(i* background_rect.width, j* background_rect.height, background_rect.width,background_rect.height))
+
+def draw_text(text,font,surface,x,y,main_color):    # 게임 내 텍스트
+    text_obj = font.render(text,True,main_color)    # text를 받고 메인 컬러를 지정
+    text_rect = text_obj.get_rect() #크기를 가져와 x , y에 넣어줌
+    text_rect.centerx = x
+    text_rect.centery = y
+    surface.blit(text_obj, text_rect) # surface에 생성한것들을 정의
+
+def game_loop():    # 게임 엔진함수
+    global score
+
+    pygame.mixer.music.play(-1) # 배경음악 무한반복
+    pygame.mouse.set_visible(False) # False로 바꿈으로써 게임을 시작
+
+    spaceship=Spaceship()
+    spaceship.set_pos(*pygame.mouse.get_pos())  # 마우스의 현재위치
+    rocks = pygame.sprite.Group()   # 상속받은 sprite를 이용
+    warps = pygame.sprite.Group()
+
+    min_rock_speed = 1
+    max_rock_speed = 1
+    occur_of_rocks = 1
+    occur_prob = 15
+    score = 0
+    warp_count = 1
+    paused = False  # 일시정지 변수
+
+    while True:
+        pygame.display.update()
+        fps_clock.tick(FPS) # FPS 시간 설정
+
+        if paused:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_p:
+                        paused = not paused
+                        pygame.mouse.set_visible(False) # 마우스를 감춤
+
+                if event.type == QUIT:
+                    return 'quit'
+        else:
+            draw_repeating_background(background_img)   # 백그라운드 이미지 그림 화면도 계속 출력
+
+            occur_of_rocks = 1 + int(score / 500)   #스코어 기준으로 난이도 측정
+            min_rock_speed = 1 + int(score / 400)
+            max_rock_speed = 1 + int(score / 300)
+
+            if random.randint(1,occur_prob) == 1:   # 난이도 설정
+                for i in range(occur_of_rocks):
+                    rocks.add(random_rock(random.randint(min_rock_speed,max_rock_speed)))
+                    score +=1
+                    # 랜덤하게 발생시킴  min_rock_speed과max_rock_speed 사이에
+
+                if random.randint(1, occur_prob * 10) == 1: # 암석에대해서만 조절하는것이 아니라 좀더 희박하게 warp아이템이 나오게 해준다.
+                    warp = Warp(random.randint(30, WINDOW_W - 30), random.randint(30, WINDOW_H-30))
+                    warps.add(warp)
+
+            draw_text('점수: {}'.format(score), default_font, screen, 80 ,20,YELLOW)    # 폰트 설정
+            draw_text('워프: {}'.format(warp_count), default_font, screen, 700 ,20, BLUE)
+            rocks.update()  # 업데이트
+            warps.update()
+            rocks.draw(screen) # 화면에 그려줌
+            warps.draw(screen)
+
+            # 게임을 끝낼요소 충돌요소 검열
+            warp = spaceship.collide(warps)
+            if spaceship.collide(rocks):    # 충돌을 하게되면
+                explosion_sound.play()  # 폭팔 브금
+                pygame.mixer.music.stop()   # 음악을 멈춤
+                rocks.empty()   # 깔끔히 다 비워줌
+                return 'game_screen'    # 다시 초기화면으로 돌아감
+            elif warp:  # 워프 사용
+                warp_count +=1
+                warp.kill()
+
+
+            screen.blit(spaceship.image, spaceship.rect)    # 화면에 생성
+
+            for event in pygame.event.get():    # 마우스 이벤트 설정
+                if event.type == pygame.MOUSEMOTION:    # 마우스 모션을 가져옴
+                    mouse_pos = pygame.mouse.get_pos()
+                    if mouse_pos[0] <= 10:  # 왼쪽 부분에 끝에 접근했을떄 즉 막힌 창에서 넘겼을떄
+                        # 반대편에서 나오게함
+                        pygame.mouse.set_pos(WINDOW_W - 10 , mouse_pos[1])
+                    elif mouse_pos[0] >= WINDOW_W - 10: # 이곳도 오른쪽 부분 끝에 접근했을떄 이와 같음
+                        pygame.mouse.set_pos(0 + 10, mouse_pos[1])
+                    elif mouse_pos[1] <= 10:    # 위 아래도 마찬가지
+                        pygame.mouse.set_pos(mouse_pos[0], WINDOW_H - 10)
+                    elif mouse_pos[1] >= WINDOW_H - 10:
+                        pygame.mouse.set_pos(mouse_pos[0], 0+10)
+                    spaceship.set_pos(*mouse_pos)   # 마우스에 위치를 입력
+                if event.type == pygame.MOUSEBUTTONDOWN:    # 마우스 버튼이 입력 되었을때
+                    if warp_count > 0:  # 워프개수가 1개라도있으면 사용
+                        warp_count -=1
+                        warp_sound.play()
+                        sleep(1)
+                        rocks.empty()   # 모든 암석을 없애줌 다른 공간으로 이동했으므로
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_p:
+                        paused = not paused
+                        if paused:
+                            transp_surf = pygame.Surface((WINDOW_W, WINDOW_H))  # 화면 크기만큼 받고
+                            transp_surf.set_alpha(150)  # 약간 투명한형태로 화면을 구성
+                            screen.blit(transp_surf, transp_surf.get_rect())    # 
+                            pygame.mouse.set_visible(True)  # p를 누르게되면 즉 일시정지 상태라면
+                            # 마우스를 보이게 해준다
+                            draw_text('일시정지', pygame.font.Font('NanumGothic.ttf',60),screen, WINDOW_W/2, WINDOW_H/2, YELLOW)    # 텍스트 함수 이용
+                if event.type == quit:
+                    return 'quit'
+    return 'game_screen'
+
+def game_screen():  # 게임 안내 화면
+    global score
+    pygame.mouse.set_visible(True)  # 마우스 보임
+
+    start_image = pygame.image.load('game_screen.png')
+    screen.blit(start_image, [0,0]) # 위치가 0,0인 이유는 
+    #크기를 딱 맞춰야 하니까 맨 꼭대기부터 전체를 다 그려줘야한다.
+
+    draw_text('우주 암석 피하기', pygame.font.Font('NanumGothic.ttf', 70), screen, WINDOW_W/2, WINDOW_H/3.4,WHITE)
+
+    draw_text('점수: {}'.format(score), default_font,screen, WINDOW_W/2, WINDOW_H/2.4,YELLOW)
+
+    draw_text('마우스 버튼이나 ''S''키를 누르면 게임이 시작됩니다.', default_font,screen, WINDOW_W/2, WINDOW_H/2.0,WHITE)
+    draw_text('게임을 종료하려면 ''Q'' 키를 누르세요.', default_font,screen, WINDOW_W/2, WINDOW_H/1.8,WHITE)
+
+
+    pygame.display.update() # 업데이트
+
+    for event in pygame.event.get():    # 키처리
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_q: # q를 눌렀을때 종료
+                return 'quit'
+            elif event.key == pygame.K_s:   # s를 눌렀을떄 게임시작
+                return 'play'
+        if event.type == pygame.MOUSEBUTTONDOWN:    # 마우스 클릭했을때 게임시작
+            return 'play'
+        if event.type == QUIT:
+            return 'quit'
+
+    return 'game_screen'
+
+def main_loop():    # 루프돌면서 확인
+    action = 'game_screen'
+    while action != 'quit':
+        if action == 'game_screen':
+            action = game_screen()
+        elif action =='play':
+            action = game_loop()
+    pygame.quit()
+
+
+main_loop()
